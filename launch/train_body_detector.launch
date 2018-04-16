@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-    <arg name="pos" value="$(find laser_people_detect)/bags/pos.bag" />
+    <arg name="pos" value="$(find laser_people_detect)/bags/pos.bag"/>
     <arg name="neg" value="$(find laser_people_detect)/bags/neg.bag"/>
-  <arg name="save" value="$(find laser_people_detect)/model/test.yaml"/>
+    <arg name="save" value="$(find laser_people_detect)/model/test.yaml"/>
 
-  <node pkg="laser_people_detect" type="train_body_detector" name="train_body_detector" args="--train $(arg pos) --neg $(arg neg) --save $(arg save)" output="screen">
+  <node pkg="laser_people_detect" type="train_body_detector" name="train_body_detector" args="--mix $(arg pos) $(arg neg) --neg $(arg neg) --save $(arg save)" output="screen">
       <param name="connect_th" type="double" value="0.06" />
       <param name="min_size" type="int" value="10" />
+      <param name="min_x" type="double" value="0.0" />
+      <param name="max_x" type="double" value="2.0" />
+      <param name="min_y" type="double" value="0.0" />
+      <param name="max_y" type="double" value="1.0" />
   </node>
 </launch>
 

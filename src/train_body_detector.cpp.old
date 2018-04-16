@@ -31,7 +31,6 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-#include <vector>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -70,7 +69,7 @@
 using namespace std;
 using namespace ros;
 
-enum LoadType {LOADING_NONE, LOADING_POS, LOADING_NEG, LOADING_MIX, LOADING_TEST};
+enum LoadType {LOADING_NONE, LOADING_POS, LOADING_NEG, LOADING_TEST};
 
 class TrainPeopleDetector
 {
@@ -85,13 +84,11 @@ public:
   float connected_thresh_;
   float min_size_;
   int feat_count_;
-  vector<float> pos_region_;
 
-  TrainPeopleDetector(float min_size, float connect_th, vector<float> pos_region) : min_size_(20), connected_thresh_(0.06), feat_count_(0)
+  TrainPeopleDetector(float min_size, float connect_th) : min_size_(20), connected_thresh_(0.06), feat_count_(0)
   {
       connected_thresh_ = connect_th;
       min_size_ = min_size;
-      pos_region_ = pos_region;
   }
 
   void loadData(LoadType load, char* file)
@@ -103,38 +100,32 @@ public:
       {
           case LOADING_POS:
               cout << "Loading positive training data from file: "<< file << endl;
-              loadCb(file, pos_data_);
+              loadCb(file, "scan", pos_data_);
               break;
           case LOADING_NEG:
               cout << "Loading negative training data from file: "<< file << endl;
-              loadCb(file, neg_data_);
-              break;
-          case LOADING_MIX:
-              cout << "Loading mix training data from file: "<< file << endl;
-              loadCb(true, file, pos_data_, neg_data_);
+              loadCb(file, "scan", neg_data_);
               break;
           case LOADING_TEST:
               cout << "Loading test data from file: "<< file << endl;
-              loadCb(file, test_data_);
+              loadCb(file, "scan", test_data_);
               break;
           default:
               break;
       }
+
     }
   }
-  void loadCb(const char* rosbag_file, vector< vector<float> > &data)
-  {
-      loadCb(false, rosbag_file, data, data);
-  }
-  void loadCb(bool is_mix, const char* rosbag_file, vector< vector<float> > &data, vector< vector<float> > &neg)
+  void loadCb(const char* rosbag_file, const char* scan_topic, std::vector< std::vector<float> > &data)
   {
     rosbag::Bag bag;
     bag.open(rosbag_file, rosbag::bagmode::Read);
+    std::vector<std::string> topics;
+    topics.push_back(std::string(scan_topic));
     rosbag::View view(bag); 
 
     int message_num = 0;
-    int initial_data_size = (int)data.size();
-    int initial_neg_data_size = (int)neg.size();
+    int initial_neg_data_size = (int)data.size();
 
     // ***********************start from here********************
     int bundle_num = 3; // every 3 scan bundle together
@@ -208,28 +199,14 @@ public:
                 for (std::vector<pcl::PointIndices>::const_iterator it=cluster_indices.begin(); it!=cluster_indices.end(); ++it)
                 {    
                     pcl::PointCloud<pcl::PointXYZ>::Ptr cluster (new pcl::PointCloud<pcl::PointXYZ>);
-                    float c_x = 0.0;
-                    float c_y = 0.0;
                     for (std::vector<int>::const_iterator j=it->indices.begin(); j!=it->indices.end(); ++j)
                     {                                                                       
                         cluster->points.push_back(cloud_filtered->points[(int)(*j)]);                 
-                        c_x += cloud_filtered->points[*j].x;
-                        c_y += cloud_filtered->points[*j].y;
                     }                                                                       
                     cluster->width = cloud_filtered->points.size();                    
                     cluster->height = 1;                                              
                     cluster->is_dense = true; //no invalid points        
                 
-                    c_x /= cluster->points.size();
-                    c_y /= cluster->points.size();
-                    if(is_mix)
-                    {
-                        if(c_x > pos_region_[0] && c_x < pos_region_[1] && c_y > pos_region_[2] && c_y < pos_region_[3])
-                            data.push_back(calcPeopleFeatures(cluster));                 
-                        //else
-                        //    neg.push_back(calcPeopleFeatures(cluster));
-                        continue;
-                    }
                     data.push_back(calcPeopleFeatures(cluster));                 
                 }
                 bundle.clear();
@@ -240,13 +217,7 @@ public:
     }
     bag.close();
 
-    if(is_mix)
-    {
-        cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_data_size << "  pos samples, from " << rosbag_file << endl;
-        // cout << "\t Got " << message_num << " scan messages, "<< (int)neg.size() - initial_neg_data_size << "  neg samples, from " << rosbag_file << endl;
-        return;
-    }
-    cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_data_size << "  samples, from " << rosbag_file << endl;
+    cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_neg_data_size << "  samples, from " << rosbag_file << endl;
   } 
 
 
@@ -360,16 +331,11 @@ int main(int argc, char **argv)
 
   float connect_th = 0.06; 
   float min_size = 20; 
-  vector<float> pos_region(4, 0);
   ros::param::get("~connect_th", connect_th);
   ros::param::get("~min_size", min_size);
-  ros::param::get("~min_x", pos_region[0]);
-  ros::param::get("~max_x", pos_region[1]);
-  ros::param::get("~min_y", pos_region[2]);
-  ros::param::get("~max_y", pos_region[3]);
   cout << "connect_th: " << connect_th << " min_size: " << min_size << endl;
 
-  TrainPeopleDetector tpd(min_size, connect_th, pos_region);
+  TrainPeopleDetector tpd(min_size, connect_th);
 
   LoadType loading = LOADING_NONE;
 
@@ -379,12 +345,10 @@ int main(int argc, char **argv)
   cout << "Loading data..." << endl;
   for (int i = 1; i < argc; i++)
   {
-    if (!strcmp(argv[i], "--pos"))
+    if (!strcmp(argv[i], "--train"))
       loading = LOADING_POS;
     else if (!strcmp(argv[i], "--neg"))
       loading = LOADING_NEG;
-    else if (!strcmp(argv[i], "--mix"))
-        loading = LOADING_MIX;
     else if (!strcmp(argv[i], "--test"))
       loading = LOADING_TEST;
     else if (!strcmp(argv[i], "--save"))
