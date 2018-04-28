@@ -67,6 +67,8 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 #include "laser_geometry/laser_geometry.h"
 
+#include <dirent.h>
+
 using namespace std;
 using namespace ros;
 
@@ -82,51 +84,88 @@ public:
 
   CvRTrees forest;
 
-  float connected_thresh_;
-  float min_size_;
-  int feat_count_;
-  vector<float> pos_region_;
+  float min_x_;
+  float max_x_;
+  float min_y_;
+  float max_y_;
+  float mean_k_;
+  float std_dev_mult_thresh_;
+  float leaf_size_x_;
+  float leaf_size_y_;
+  float leaf_size_z_;
+  float cluster_tolerance_;
+  float min_cluster_size_;
+  float max_cluster_size_;
 
-  TrainPeopleDetector(float min_size, float connect_th, vector<float> pos_region) : min_size_(20), connected_thresh_(0.06), feat_count_(0)
+  int feat_count_;
+
+  TrainPeopleDetector(vector<float> param_vec)
   {
-      connected_thresh_ = connect_th;
-      min_size_ = min_size;
-      pos_region_ = pos_region;
+        min_x_              = param_vec[0];
+        max_x_              = param_vec[1];
+        min_y_              = param_vec[2];
+        max_y_              = param_vec[3];
+        mean_k_             = param_vec[4];
+        std_dev_mult_thresh_ = param_vec[5];
+        leaf_size_x_        = param_vec[6];
+        leaf_size_y_        = param_vec[7];
+        leaf_size_z_        = param_vec[8];
+        cluster_tolerance_  = param_vec[9];
+        min_cluster_size_   = param_vec[10];
+        max_cluster_size_   = param_vec[11];
   }
 
-  void loadData(LoadType load, char* file)
+  void loadData(LoadType load, const char* folder)
   {
     if (load != LOADING_NONE)
     {
       // features wll saved to pos_data_ neg_data_
-      switch (load)
+      struct dirent *ptr;
+      DIR *dir;
+      dir = opendir(folder);
+      vector<string> files;
+      cout << "opening folder: " << folder << "..." << endl;
+      while((ptr=readdir(dir))!=NULL)
       {
-          case LOADING_POS:
-              cout << "Loading positive training data from file: "<< file << endl;
-              loadCb(file, pos_data_);
-              break;
-          case LOADING_NEG:
-              cout << "Loading negative training data from file: "<< file << endl;
-              loadCb(file, neg_data_);
-              break;
-          case LOADING_MIX:
-              cout << "Loading mix training data from file: "<< file << endl;
-              loadCb(true, file, pos_data_, neg_data_);
-              break;
-          case LOADING_TEST:
-              cout << "Loading test data from file: "<< file << endl;
-              loadCb(file, test_data_);
-              break;
-          default:
-              break;
+          // skip "." and ".." file
+          if(ptr->d_name[0] == '.')
+              continue;
+          string cc = string(folder) + string(ptr->d_name); 
+          //files.push_back(const_cast<char*>(cc.c_str()));
+          files.push_back(cc);
+      }
+      closedir(dir);
+      for (int i = 0; i < files.size(); ++i)
+      {
+          switch (load)
+          {
+              case LOADING_POS:
+                  cout << "Loading positive training data from file: "<< files[i] << endl;
+                  loadCb(false, files[i], pos_data_);
+                  break;
+              case LOADING_NEG:
+                  cout << "Loading negative training data from file: "<< files[i] << endl;
+                  loadCb(false, files[i], neg_data_);
+                  break;
+              case LOADING_MIX:
+                  cout << "Loading mix training data from file: "<< files[i] << endl;
+                  loadCb(true, files[i], pos_data_);
+                  break;
+              case LOADING_TEST:
+                  cout << "Loading test data from file: "<< files[i] << endl;
+                  loadCb(false, files[i], test_data_);
+                  break;
+              default:
+                  break;
+          }
       }
     }
   }
-  void loadCb(const char* rosbag_file, vector< vector<float> > &data)
-  {
-      loadCb(false, rosbag_file, data, data);
-  }
-  void loadCb(bool is_mix, const char* rosbag_file, vector< vector<float> > &data, vector< vector<float> > &neg)
+  //void loadCb(const char* rosbag_file, vector< vector<float> > &data)
+  //{
+  //    loadCb(false, rosbag_file, data, data);
+  //}
+  void loadCb(bool is_mix, string const& rosbag_file, vector< vector<float> > &data)
   {
     rosbag::Bag bag;
     bag.open(rosbag_file, rosbag::bagmode::Read);
@@ -134,7 +173,6 @@ public:
 
     int message_num = 0;
     int initial_data_size = (int)data.size();
-    int initial_neg_data_size = (int)neg.size();
 
     // ***********************start from here********************
     int bundle_num = 3; // every 3 scan bundle together
@@ -179,30 +217,36 @@ public:
                 //**************pcl filter***************
                 //filtering the cloud by using statistical removal                          
                 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-                pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;                          
-                sor.setInputCloud(pcl_cloud);                                                   
-                sor.setMeanK(10);                                                           
-                sor.setStddevMulThresh(1.0);                                                
-                sor.filter(*pcl_cloud);   
+                if(pcl_cloud->points.size() > 10)
+                {
+                    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;                          
+                    sor.setInputCloud(pcl_cloud);                                                   
+                    sor.setMeanK(mean_k_);                                                           
+                    sor.setStddevMulThresh(std_dev_mult_thresh_);                                                
+                    sor.filter(*pcl_cloud);   
 
-                // voxel
-                pcl::VoxelGrid<pcl::PointXYZ> sor1;                                         
-                sor1.setInputCloud(pcl_cloud);                                                  
-                sor1.setLeafSize(0.02f, 0.02f, 0.02f);                                      
-                sor1.filter(*cloud_filtered);  
+                    // voxel
+                    pcl::VoxelGrid<pcl::PointXYZ> sor1;                                         
+                    sor1.setInputCloud(pcl_cloud);                                                  
+                    sor1.setLeafSize(leaf_size_x_, leaf_size_y_, leaf_size_z_);                                      
+                    sor1.filter(*cloud_filtered);  
+                }
 
                 //*************pcl cluster**************
-                pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-                tree->setInputCloud (cloud_filtered);  
-
                 std::vector<pcl::PointIndices> cluster_indices;
-                pcl::EuclideanClusterExtraction<pcl::PointXYZ> ece;
-                ece.setClusterTolerance(0.15); //15cm, the unit is meter
-                ece.setMinClusterSize(15); //the minimun number of points to form a cluster is 15
-                ece.setMaxClusterSize(25000); //the maximum number of points in a cluster
-                ece.setSearchMethod(tree);
-                ece.setInputCloud(cloud_filtered);
-                ece.extract(cluster_indices);
+                if(cloud_filtered->points.size() > 10)
+                {
+                    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+                    tree->setInputCloud (cloud_filtered);  
+
+                    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ece;
+                    ece.setClusterTolerance(cluster_tolerance_); //15cm, the unit is meter
+                    ece.setMinClusterSize(min_cluster_size_); //the minimun number of points to form a cluster is 15
+                    ece.setMaxClusterSize(max_cluster_size_); //the maximum number of points in a cluster
+                    ece.setSearchMethod(tree);
+                    ece.setInputCloud(cloud_filtered);
+                    ece.extract(cluster_indices);
+                }
 
                 //*************calculate features****************
                 for (std::vector<pcl::PointIndices>::const_iterator it=cluster_indices.begin(); it!=cluster_indices.end(); ++it)
@@ -224,7 +268,7 @@ public:
                     c_y /= cluster->points.size();
                     if(is_mix)
                     {
-                        if(c_x > pos_region_[0] && c_x < pos_region_[1] && c_y > pos_region_[2] && c_y < pos_region_[3])
+                        if(c_x > min_x_ && c_x < max_x_ && c_y > min_y_ && c_y < max_y_)
                             data.push_back(calcPeopleFeatures(cluster));                 
                         //else
                         //    neg.push_back(calcPeopleFeatures(cluster));
@@ -240,13 +284,7 @@ public:
     }
     bag.close();
 
-    if(is_mix)
-    {
-        cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_data_size << "  pos samples, from " << rosbag_file << endl;
-        // cout << "\t Got " << message_num << " scan messages, "<< (int)neg.size() - initial_neg_data_size << "  neg samples, from " << rosbag_file << endl;
-        return;
-    }
-    cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_data_size << "  samples, from " << rosbag_file << endl;
+    cout << "\t Got " << message_num << " scan messages, "<< (int)data.size() - initial_data_size << "  samples" << endl;
   } 
 
 
@@ -358,18 +396,33 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "train_body_detector");
   ros::NodeHandle nh;
 
-  float connect_th = 0.06; 
-  float min_size = 20; 
-  vector<float> pos_region(4, 0);
-  ros::param::get("~connect_th", connect_th);
-  ros::param::get("~min_size", min_size);
-  ros::param::get("~min_x", pos_region[0]);
-  ros::param::get("~max_x", pos_region[1]);
-  ros::param::get("~min_y", pos_region[2]);
-  ros::param::get("~max_y", pos_region[3]);
-  cout << "connect_th: " << connect_th << " min_size: " << min_size << endl;
+  vector<float> param_vec(12, 0);
+  if(!ros::param::get("~min_x", param_vec[0]))
+      param_vec[0] = 0.0;
+  if(!ros::param::get("~max_x", param_vec[1]))
+      param_vec[1] = 10.0;
+  if(ros::param::get("~min_y", param_vec[2]))
+      param_vec[2] = -2.0;
+  if(ros::param::get("~max_y", param_vec[3]))
+      param_vec[3] = 2.0;
+  if(!ros::param::get("~mean_k", param_vec[4]))
+      param_vec[4] = 10.0;
+  if(!ros::param::get("~std_dev_mult_thresh", param_vec[5]))
+      param_vec[5] = 1.0;
+  if(!ros::param::get("~leaf_size_x", param_vec[6]))
+      param_vec[6] = 0.02;
+  if(!ros::param::get("~leaf_size_y", param_vec[7]))
+      param_vec[7] = 0.02;
+  if(!ros::param::get("~leaf_size_z", param_vec[8]))
+      param_vec[8] = 0.02;
+  if(!ros::param::get("~cluster_tolerance", param_vec[9]))
+      param_vec[9] = 0.2;
+  if(!ros::param::get("~min_cluster_size", param_vec[10]))
+      param_vec[10] = 20.0;
+  if(!ros::param::get("~max_cluster_size", param_vec[11]))
+      param_vec[11] = 2000.0;
 
-  TrainPeopleDetector tpd(min_size, connect_th, pos_region);
+  TrainPeopleDetector tpd(param_vec);
 
   LoadType loading = LOADING_NONE;
 
