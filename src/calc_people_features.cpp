@@ -150,17 +150,42 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     //min enclosing circle
     vector<cv::Point2f> mat;
     cv::Point2f cent;
+    float x_min = 100000, y_min = 100000, x_max = -1, y_max = -1;
     for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
     {
-        // zoom x and y for right detect in minEnclosingCircle, witch min output radius is 1
+        // zoom x and y for right detect in minEnclosingCircle, which min output radius is 1
         cent.x = (*i).x * 100;
         cent.y = (*i).y * 100;
         mat.push_back(cent);
+        if((*i).x > x_max)
+            x_max = (*i).x;
+        if((*i).x < x_min)
+            x_min = (*i).x;
+        if((*i).y > y_max)
+            y_max = (*i).y;
+        if((*i).y < y_min)
+            y_min = (*i).y;
     }
     float enclosing_radius = 0.0;
     cv::minEnclosingCircle(mat, cent, enclosing_radius);
     if (DEBUG)
         cout << "enclosing_radius: " << enclosing_radius << endl;
+
+    // density = num / enclosing_circle area
+    float density = 0.0;
+    density = cluster->points.size() / pow(enclosing_radius/100.0, 2);
+    features.push_back(density);
+
+    // enclosing rectangle
+    float enclosing_rectangle = 0.0;
+    cv::RotatedRect rRect = cv::minAreaRect(mat);
+    enclosing_rectangle = rRect.size.width/rRect.size.height;
+    features.push_back(enclosing_rectangle);
+
+    //manhattan dist
+    float manhattan_dist = (x_max-x_min) + (y_max+y_min);
+    features.push_back(manhattan_dist);
+   
 
     return features;
 }
