@@ -23,11 +23,13 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
 
     // max distance to centroid and median points
     float max_dist = 0.0;
+    float dist_sum = 0.0;
     vector<float> x_median_set;
     vector<float> y_median_set;
     for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
     {
         float d = pow((*i).x - centroid[0], 2) + pow((*i).y - centroid[1], 2);
+        dist_sum += d;
         if (d > max_dist)
             max_dist = d;
         x_median_set.push_back((*i).x);
@@ -42,7 +44,8 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     if (DEBUG)
         cout << "max_dist: " << max_dist << endl;
 
-    features.push_back(max_dist);
+    features.push_back(max_dist); //the maximum distance from any point to the centroid of the cluster
+    features.push_back(dist_sum); //the sum of the distance from any point to the centroid of the cluster
 
     //Compute std and avg diff from median
     double sum_std_diff = 0.0;
@@ -177,10 +180,13 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     features.push_back(density);
 
     // enclosing rectangle
-    float enclosing_rectangle = 0.0;
+    float enclosing_rect_ratio = 0.0;
+    float enclosing_rect_area = 0.0;
     cv::RotatedRect rRect = cv::minAreaRect(mat);
-    enclosing_rectangle = rRect.size.width/rRect.size.height;
-    features.push_back(enclosing_rectangle);
+    enclosing_rect_ratio = rRect.size.width/rRect.size.height;
+    enclosing_rect_area = rRect.size.width*rRect.size.height;
+    features.push_back(enclosing_rect_ratio);
+    features.push_back(enclosing_rect_area);
 
     //manhattan dist
     float manhattan_dist = (x_max-x_min) + (y_max+y_min);

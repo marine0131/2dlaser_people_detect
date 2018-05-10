@@ -7,10 +7,10 @@
 
   <node pkg="laser_people_detect" type="train_body_detector" name="train_body_detector" args="--pos $(arg pos) --neg $(arg neg) --mix $(arg mix) --save $(arg save)" output="screen">
       <param name="min_cluster_size" type="int" value="10" />
-      <param name="min_x" type="double" value="0.0" />
-      <param name="max_x" type="double" value="10.0" />
-      <param name="min_y" type="double" value="0.0" />
-      <param name="max_y" type="double" value="5.0" />
+      <param name="min_x" type="double" value="0.2" />
+      <param name="max_x" type="double" value="16.0" />
+      <param name="min_y" type="double" value="0.2" />
+      <param name="max_y" type="double" value="4.8" />
       <param name="mean_k" type="double" value="10.0" />
       <param name="std_dev_mult_thresh" type="double" value="1.0" />
       <param name="leaf_size_x" type="double" value="0.02" />
