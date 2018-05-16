@@ -4,6 +4,8 @@
 #include "opencv/cv.h"
 #include <pcl/common/centroid.h>
 
+#include <fstream>
+
 // using namespace laser_processor;
 using namespace std;
 bool DEBUG = false;
@@ -75,34 +77,34 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
        }
     }
 
-    CvMat* W = cvCreateMat(2, 2, CV_64FC1);
-    CvMat* U = cvCreateMat(num_points, 2, CV_64FC1);
-    CvMat* V = cvCreateMat(2, 2, CV_64FC1);
-    cvSVD(points, W, U, V);
+    //CvMat* W = cvCreateMat(2, 2, CV_64FC1);
+    //CvMat* U = cvCreateMat(num_points, 2, CV_64FC1);
+    //CvMat* V = cvCreateMat(2, 2, CV_64FC1);
+    //cvSVD(points, W, U, V);
 
-    CvMat* rot_points = cvCreateMat(num_points, 2, CV_64FC1);
-    cvMatMul(U, W, rot_points);
+    //CvMat* rot_points = cvCreateMat(num_points, 2, CV_64FC1);
+    //cvMatMul(U, W, rot_points);
 
-    float linearity = 0.0;
-    for (int i = 0; i < num_points; i++)
-    {
-      linearity += pow(cvmGet(rot_points, i, 1), 2);
-    }
+    //float linearity = 0.0;
+    //for (int i = 0; i < num_points; i++)
+    //{
+    //  linearity += pow(cvmGet(rot_points, i, 1), 2);
+    //}
 
-    cvReleaseMat(&points);
-    points = 0;
-    cvReleaseMat(&W);
-    W = 0;
-    cvReleaseMat(&U);
-    U = 0;
-    cvReleaseMat(&V);
-    V = 0;
-    cvReleaseMat(&rot_points);
-    rot_points = 0;
+    //cvReleaseMat(&points);
+    //points = 0;
+    //cvReleaseMat(&W);
+    //W = 0;
+    //cvReleaseMat(&U);
+    //U = 0;
+    //cvReleaseMat(&V);
+    //V = 0;
+    //cvReleaseMat(&rot_points);
+    //rot_points = 0;
 
-    if (DEBUG)
-        cout << "linearity: " << linearity << endl;
-    features.push_back(linearity);
+    //if (DEBUG)
+    //    cout << "linearity: " << linearity << endl;
+    //features.push_back(linearity);
 
     // Compute Circularity
     CvMat* A = cvCreateMat(num_points, 3, CV_64FC1);
@@ -135,15 +137,15 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     cvReleaseMat(&sol);
     sol = 0;
 
-    float circularity = 0.0;
-    for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
-    {
-      circularity += pow(rc - sqrt(pow(xc - (*i).x, 2) + pow(yc - (*i).y, 2)), 2);
-    }
+    //float circularity = 0.0;
+    //for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
+    //{
+    //  circularity += pow(rc - sqrt(pow(xc - (*i).x, 2) + pow(yc - (*i).y, 2)), 2);
+    //}
 
-    if (DEBUG)
-        cout << "circularity: " << circularity << endl;
-    features.push_back(circularity);
+    //if (DEBUG)
+    //    cout << "circularity: " << circularity << endl;
+    //features.push_back(circularity);
 
     // Radius
     if (DEBUG)
@@ -191,7 +193,7 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     //manhattan dist
     float manhattan_dist = (x_max-x_min) + (y_max+y_min);
     features.push_back(manhattan_dist);
-   
+
 
     return features;
 }

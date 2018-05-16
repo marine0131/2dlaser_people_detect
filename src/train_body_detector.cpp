@@ -69,6 +69,8 @@
 
 #include <dirent.h>
 
+#include <fstream>
+
 using namespace std;
 using namespace ros;
 
@@ -98,6 +100,9 @@ public:
   float max_cluster_size_;
 
   int feat_count_;
+  
+  ofstream outfile;
+  ofstream probfile;
 
   TrainPeopleDetector(vector<float> param_vec)
   {
@@ -135,6 +140,7 @@ public:
           files.push_back(cc);
       }
       closedir(dir);
+
       for (int i = 0; i < files.size(); ++i)
       {
           switch (load)
@@ -142,14 +148,20 @@ public:
               case LOADING_POS:
                   cout << "Loading positive training data from file: "<< files[i] << endl;
                   loadCb(false, files[i], pos_data_);
+                  outfile << "**********************end of positive training result**********************" << endl;
+                  outfile.flush();
                   break;
               case LOADING_NEG:
                   cout << "Loading negative training data from file: "<< files[i] << endl;
-                  loadCb(false, files[i], neg_data_);
+                  loadCb(false, files[i], neg_data_);                    
+                  outfile << "**********************end of negative training result**********************" << endl;
+                  outfile.flush();
                   break;
               case LOADING_MIX:
                   cout << "Loading mix training data from file: "<< files[i] << endl;
                   loadCb(true, files[i], pos_data_);
+                  outfile << "**********************end of mix training result**********************" << endl;
+                  outfile.flush();
                   break;
               case LOADING_TEST:
                   cout << "Loading test data from file: "<< files[i] << endl;
@@ -266,15 +278,30 @@ public:
                 
                     c_x /= cluster->points.size();
                     c_y /= cluster->points.size();
+                    
+                    vector<float> features;
                     if(is_mix)
                     {
                         if(c_x > min_x_ && c_x < max_x_ && c_y > min_y_ && c_y < max_y_)
-                            data.push_back(calcPeopleFeatures(cluster));                 
+                        {
+                            features = calcPeopleFeatures(cluster);                 
+                            data.push_back(features);
+                        }
                         //else
                         //    neg.push_back(calcPeopleFeatures(cluster));
-                        continue;
                     }
-                    data.push_back(calcPeopleFeatures(cluster));                 
+                    else{
+                        features = calcPeopleFeatures(cluster);
+                        data.push_back(features);
+                    }
+
+                    for (vector<float>::iterator iter = features.begin(); iter != features.end(); iter++)                                      
+                    {                                                                           
+                        outfile << *iter << " ";                                                
+                    }                                                                           
+                    outfile.flush();                                                            
+                    outfile << endl;                                                            
+
                 }
                 bundle.clear();
             }
@@ -349,6 +376,7 @@ public:
     {
       for (int k = 0; k < feat_count_; k++)
         tmp_mat->data.fl[k] = (float)((*i)[k]);
+      probfile << "positive: " << forest.predict_prob(tmp_mat) << endl;
       if (forest.predict(tmp_mat) > 0)
         pos_right++;
       pos_total++;
@@ -360,6 +388,7 @@ public:
     {
       for (int k = 0; k < feat_count_; k++)
         tmp_mat->data.fl[k] = (float)((*i)[k]);
+      probfile << "negative: " << forest.predict_prob(tmp_mat) << endl;
       if (forest.predict(tmp_mat) < 0)
         neg_right++;
       neg_total++;
@@ -426,6 +455,9 @@ int main(int argc, char **argv)
 
   LoadType loading = LOADING_NONE;
 
+  tpd.outfile.open("/home/whj/data.txt");
+  tpd.probfile.open("/home/whj/test_result.txt");
+
   char save_file[200];
   save_file[0] = 0;
 
@@ -462,6 +494,8 @@ int main(int argc, char **argv)
     tpd.save(save_file);
   }
 
+  tpd.outfile.close();
+  tpd.probfile.close();
   //ros::spin();
   return 0;
 }
