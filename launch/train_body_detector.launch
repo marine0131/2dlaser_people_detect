@@ -16,8 +16,8 @@
       <param name="leaf_size_x" type="double" value="0.02" />
       <param name="leaf_size_y" type="double" value="0.02" />
       <param name="leaf_size_z" type="double" value="0.02" />
-      <param name="cluster_tolerance" type="double" value="0.15" />
-      <param name="min_cluster_size" type="double" value="20" />
+      <param name="cluster_tolerance" type="double" value="0.40" />
+      <param name="min_cluster_size" type="double" value="10" />
       <param name="max_cluster_size" type="double" value="2000" />
 
   </node>

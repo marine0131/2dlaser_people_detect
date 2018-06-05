@@ -4,8 +4,6 @@
 #include "opencv/cv.h"
 #include <pcl/common/centroid.h>
 
-#include <fstream>
-
 // using namespace laser_processor;
 using namespace std;
 bool DEBUG = false;
@@ -47,19 +45,19 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
         cout << "max_dist: " << max_dist << endl;
 
     features.push_back(max_dist); //the maximum distance from any point to the centroid of the cluster
-    features.push_back(dist_sum); //the sum of the distance from any point to the centroid of the cluster
+    //features.push_back(dist_sum); //the sum of the distance from any point to the centroid of the cluster
 
     //Compute std and avg diff from median
-    double sum_std_diff = 0.0;
+    //double sum_std_diff = 0.0;
     double sum_med_diff = 0.0;
 
     for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
     {
-        sum_std_diff += pow((*i).x - centroid[0], 2) + pow((*i).y - centroid[1], 2);
+        // sum_std_diff += pow((*i).x - centroid[0], 2) + pow((*i).y - centroid[1], 2);
         sum_med_diff += sqrt(pow((*i).x - x_median, 2) + pow((*i).y - y_median, 2));
     }
 
-    float std = sqrt(1.0 / (num_points - 1.0) * sum_std_diff);
+    float std = sqrt(dist_sum / (num_points - 1.0));
     float avg_median_dev = sum_med_diff / num_points;
 
     features.push_back(std);
@@ -76,6 +74,7 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
          j++;
        }
     }
+    cvReleaseMat(&points);
 
     //CvMat* W = cvCreateMat(2, 2, CV_64FC1);
     //CvMat* U = cvCreateMat(num_points, 2, CV_64FC1);
@@ -178,7 +177,7 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
 
     // density = num / enclosing_circle area
     float density = 0.0;
-    density = cluster->points.size() / pow(enclosing_radius/100.0, 2);
+    density = num_points / pow(enclosing_radius/100.0, 2);
     features.push_back(density);
 
     // enclosing rectangle
@@ -191,9 +190,9 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     features.push_back(enclosing_rect_area);
 
     //manhattan dist
-    float manhattan_dist = (x_max-x_min) + (y_max+y_min);
+    float manhattan_dist = (x_max-x_min) + (y_max-y_min);
     features.push_back(manhattan_dist);
-
+   
 
     return features;
 }
