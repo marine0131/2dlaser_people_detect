@@ -154,7 +154,7 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     //min enclosing circle
     vector<cv::Point2f> mat;
     cv::Point2f cent;
-    float x_min = 100000, y_min = 100000, x_max = -1, y_max = -1;
+    float x_min = 100000, y_min = 100000, x_max = -100000, y_max = -100000;
     for (pcl::PointCloud<pcl::PointXYZ>::iterator i = cluster->begin(); i != cluster->end(); i++)
     {
         // zoom x and y for right detect in minEnclosingCircle, which min output radius is 1
@@ -185,6 +185,9 @@ vector<float> calcPeopleFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster)
     float enclosing_rect_area = 0.0;
     cv::RotatedRect rRect = cv::minAreaRect(mat);
     enclosing_rect_ratio = rRect.size.width/rRect.size.height;
+    if(enclosing_rect_ratio < 1.0)
+        enclosing_rect_ratio = 1.0 / enclosing_rect_ratio;
+
     enclosing_rect_area = rRect.size.width*rRect.size.height;
     features.push_back(enclosing_rect_ratio);
     features.push_back(enclosing_rect_area);

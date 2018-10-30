@@ -53,6 +53,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>   
+#include <pcl/common/transforms.h>   
 
 
 #include <opencv/cxcore.h>
@@ -98,6 +99,7 @@ public:
   float cluster_tolerance_;
   float min_cluster_size_;
   float max_cluster_size_;
+  float flip_left_right_;
 
   int feat_count_;
   
@@ -118,6 +120,7 @@ public:
         cluster_tolerance_  = param_vec[9];
         min_cluster_size_   = param_vec[10];
         max_cluster_size_   = param_vec[11];
+        flip_left_right_    = param_vec[12];
   }
 
   void loadData(LoadType load, const char* folder)
@@ -280,8 +283,22 @@ public:
                     c_y /= cluster->points.size();
                     
                     vector<float> features;
+                    // if(flip_left_right_ > 0){
+                    //     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+                    //     pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_t (new pcl::PointCloud<pcl::PointXYZ>);
+                    //     float theta =  M_PI/2.0;
+                    //     transform (0,0) = cos(theta);
+                    //     transform (0,1) = -sin(theta);
+                    //     transform (1,0) = sin(theta);
+                    //     transform (1,1) = cos(theta);
+                    //     pcl::transformPointCloud(*cluster, *cluster_t, transform);
+                    //     features = calcPeopleFeatures(cluster);                 
+                    // }
+
+
                     if(is_mix)
                     {
+                        // check the cluster center is in people detection area
                         if(c_x > min_x_ && c_x < max_x_ && c_y > min_y_ && c_y < max_y_)
                         {
                             features = calcPeopleFeatures(cluster);                 
@@ -450,6 +467,8 @@ int main(int argc, char **argv)
       param_vec[10] = 20.0;
   if(!ros::param::get("~max_cluster_size", param_vec[11]))
       param_vec[11] = 2000.0;
+  if(!ros::param::get("~flip_left_right", param_vec[12]))
+      param_vec[12] = 0;
 
   TrainPeopleDetector tpd(param_vec);
 
@@ -485,7 +504,7 @@ int main(int argc, char **argv)
   cout << "Training classifier..." << endl;
   tpd.train();
 
-  cout <<"Evlauating classifier..."<< endl;
+  cout <<"Evaluating classifier..."<< endl;
   tpd.test();
 
   if (strlen(save_file) > 0)
