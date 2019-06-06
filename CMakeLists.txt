@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(laser_people_detect)
-# if(UNIX)
-#     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
-# endif()
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+endif()
 # look for bfl (Bayesian Filtering Library)
 # find_package(PkgConfig REQUIRED)
 # pkg_check_modules(BFL REQUIRED orocos-bfl)
@@ -18,6 +18,7 @@ project(laser_people_detect)
 find_package(PCL 1.7 REQUIRED)
 
 ## find opencv
+set(OpenCV_DIR /usr/local/share/OpenCV)
 find_package(OpenCV REQUIRED)
 
 ## Find catkin macros and libraries
@@ -36,7 +37,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Specify additional locations of header files
 include_directories(
-  include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS}
+  include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS}
 )
 
 catkin_package(INCLUDE_DIRS include
@@ -48,9 +49,15 @@ add_executable(train_body_detector
                src/calc_people_features.cpp)
 
 target_link_libraries(train_body_detector
-    ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${OpenCV_LIBS} ${PCL_FILTERS_LIBRARIES}
+    ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} 
 )
 
+add_executable(bag_to_pcd
+               src/bag_to_pcd.cpp
+)
+target_link_libraries(bag_to_pcd
+    ${catkin_LIBRARIES} ${PCL_LIBRARIES}
+)
 ## Add cmake target dependencies of the executable/library
 # add_dependencies(leg_detector people_msgs_gencpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # add_dependencies(train_leg_detector ${PROJECT_NAME}_gencpp)

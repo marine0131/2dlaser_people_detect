@@ -1,7 +1,12 @@
 #include <laser_people_detect/calc_people_features.h>
-
+// if use opencv 2
 #include "opencv/cxcore.h"
 #include "opencv/cv.h"
+// if use opencv 3
+// #include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+
+
 #include <pcl/common/centroid.h>
 
 // using namespace laser_processor;

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+    <arg name="car" value="/home/wang/laser_bags/car_bags_in_garage/"/>
+    <arg name="people" value="/home/wang/laser_bags/people/"/>
+    <arg name="mix" value="/home/wang/laser_bags/mix/"/>
+
+  <node pkg="laser_people_detect" type="bag_to_pcd" name="bag_to_pcd" args="$(arg car)" output="screen">
+  </node>
+</launch>
